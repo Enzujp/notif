@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/enzujp/notif/pkg/handlers"
+	"github.com/enzujp/notif/rabbitmq"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
 	"github.com/joho/godotenv"
@@ -24,6 +26,7 @@ func main() {
 
 	router := chi.NewRouter()
 
+	// middlewares
 	router.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{"*"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
@@ -33,11 +36,17 @@ func main() {
 		MaxAge:           300,
 	}))
 
-	// v1Router := chi.NewRouter()
+	v1Router := chi.NewRouter()
 	router.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Welcome! This is the homepage"))
 	})
-	// v1Router.Get("/errors", errorHandler)
+	// routes
+	v1Router.Post("/users/signup", handlers.Signup)
+	v1Router.Post("/users/login", handlers.Login)
+
+	router.Mount("/v1Router", v1Router)
+
+	runRabbit()
 
 	srv := http.Server{
 		Addr:    ":" + portString,
@@ -48,5 +57,11 @@ func main() {
 	if err != nil {
 		log.Fatal("Error: could not spin up server")
 	}
+}
 
+func runRabbit() {
+	if err := rabbitmq.InitRabbitMq(); err != nil {
+		panic(fmt.Sprintf("Failed to intialize RabbitMq: %v", err))
+	}
+	defer rabbitmq.Close()
 }
